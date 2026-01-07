@@ -1,0 +1,11 @@
+.{
+    .name = "image-cropper-backend",
+    .version = "0.1.0",
+    .dependencies = .{
+        .zstbi = .{
+            .url = "https://github.com/zig-gamedev/zstbi/archive/refs/heads/main.tar.gz",
+            .hash = "1220e8c0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+        },
+    },
+}
+
