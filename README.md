@@ -67,11 +67,10 @@ python gui_app.py
 
 ## Limitações importantes (TIFF/DPI)
 
-- **TIFF/TIF**: `stb_image`/`stb_image_write` **não suportam TIFF por padrão**. O projeto hoje suporta **PNG/JPG/JPEG**.
-  - Se você precisa de TIFF, as opções são:
-    - Converter TIFF → PNG antes de processar, ou
-    - Integrar `libtiff` no backend (mais complexo).
+- **TIFF/TIF**: agora é suportado no **Linux/macOS** via **libtiff** (backend Zig).
+  - No **Windows (cross-compile)** o `build.sh` desabilita TIFF por padrão (`-Denable_tiff=false`), porque precisaria de libtiff disponível no toolchain/SDK.
 - **DPI**: stb não lê DPI nativamente. O backend assume **300 DPI**.
+  - Para TIFF, tentamos ler DPI do arquivo (X/YResolution) e usar na conversão cm → px.
 
 ## Próximo passo para ficar 1:1 com seu `court.py`
 

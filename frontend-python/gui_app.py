@@ -370,7 +370,7 @@ class App(ctk.CTk):
 
                 ext = os.path.splitext(f)[1].lower()
                 if ext in {".tif", ".tiff"}:
-                    self._ui_log("Aviso: TIFF/TIF pode falhar (stb não suporta TIFF por padrão).")
+                    self._ui_log("Info: TIFF/TIF requer backend compilado com libtiff (Linux/macOS). No build Windows padrão pode estar desabilitado.")
 
                 self._ui_log(f"Processando: {os.path.basename(f)}")
                 try:

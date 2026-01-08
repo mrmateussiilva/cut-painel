@@ -1,6 +1,9 @@
 const std = @import("std");
 const types = @import("types.zig");
 const stb = @import("stb.zig");
+const build_options = @import("build_options");
+
+const tiff = if (build_options.enable_tiff) @import("tiff.zig") else void;
 
 pub const ImageOps = struct {
     fn toCstr(allocator: std.mem.Allocator, s: []const u8) ![:0]u8 {
@@ -10,7 +13,24 @@ pub const ImageOps = struct {
         return buf[0..s.len :0];
     }
 
+    fn isTiff(path: []const u8) bool {
+        // case-insensitive endsWith(.tif/.tiff)
+        if (path.len < 4) return false;
+        const ext4 = path[path.len - 4 ..];
+        if (std.ascii.eqlIgnoreCase(ext4, ".tif")) return true;
+        if (path.len >= 5) {
+            const ext5 = path[path.len - 5 ..];
+            if (std.ascii.eqlIgnoreCase(ext5, ".tiff")) return true;
+        }
+        return false;
+    }
+
     pub fn load(allocator: std.mem.Allocator, path: []const u8) !types.Image {
+        if (build_options.enable_tiff and isTiff(path)) {
+            var info = tiff.TiffInfo{};
+            return try tiff.loadRGBA(allocator, path, &info);
+        }
+
         var w: c_int = 0;
         var h: c_int = 0;
         var comp_in_file: c_int = 0;
@@ -45,6 +65,7 @@ pub const ImageOps = struct {
             .width = width,
             .height = height,
             .channels = channels,
+            .dpi = 300.0,
         };
     }
 
@@ -78,6 +99,11 @@ pub const ImageOps = struct {
         if (ok == 0) return error.SaveFailed;
     }
 
+    pub fn saveTiff(img: *const types.Image, path: []const u8) !void {
+        if (!build_options.enable_tiff) return error.TiffDisabled;
+        try tiff.saveRGBA(img, path, null);
+    }
+
     pub fn crop(allocator: std.mem.Allocator, img: *const types.Image, x: u32, y: u32, w: u32, h: u32) !types.Image {
         if (w == 0 or h == 0) return error.InvalidCrop;
         if (x + w > img.width or y + h > img.height) return error.InvalidCrop;
@@ -103,6 +129,7 @@ pub const ImageOps = struct {
             .width = w,
             .height = h,
             .channels = channels,
+            .dpi = img.dpi,
         };
     }
 
@@ -135,6 +162,7 @@ pub const ImageOps = struct {
             .width = new_w,
             .height = new_h,
             .channels = channels,
+            .dpi = img.dpi,
         };
     }
 
@@ -167,6 +195,7 @@ pub const ImageOps = struct {
             .width = new_w,
             .height = new_h,
             .channels = channels,
+            .dpi = img.dpi,
         };
     }
 
@@ -198,7 +227,7 @@ pub const ImageOps = struct {
             // clone
             const out = try allocator.alloc(u8, img.data.len);
             std.mem.copyForwards(u8, out, img.data);
-            return .{ .allocator = allocator, .data = out, .width = img.width, .height = img.height, .channels = img.channels };
+            return .{ .allocator = allocator, .data = out, .width = img.width, .height = img.height, .channels = img.channels, .dpi = img.dpi };
         }
         if (img.channels != 4) return error.UnsupportedFormat;
 
@@ -232,6 +261,7 @@ pub const ImageOps = struct {
             .width = new_w,
             .height = new_h,
             .channels = channels,
+            .dpi = img.dpi,
         };
     }
 
@@ -290,7 +320,7 @@ pub const ImageOps = struct {
             stb.c.STBIR_RGBA,
         );
 
-        return .{ .allocator = allocator, .data = out, .width = new_w, .height = new_h, .channels = 4 };
+        return .{ .allocator = allocator, .data = out, .width = new_w, .height = new_h, .channels = 4, .dpi = src.dpi };
     }
 
     fn setRGBA(buf: []u8, idx: usize, r: u8, g: u8, b: u8, a: u8) void {

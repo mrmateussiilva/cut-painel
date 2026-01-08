@@ -35,6 +35,8 @@ pub const Image = struct {
     width: u32,
     height: u32,
     channels: u8,
+    /// DPI (se conhecido). Para stb geralmente será 300. Para TIFF, tentamos ler do arquivo.
+    dpi: f64 = 300.0,
 
     pub fn stride(self: Image) usize {
         return @as(usize, self.width) * @as(usize, self.channels);

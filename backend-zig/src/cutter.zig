@@ -15,31 +15,35 @@ pub const Cutter = struct {
         var panel = try imgops.ImageOps.load(self.allocator, panel_path);
         defer panel.deinit();
 
+        // Usa DPI do painel (se conhecido) para conversão cm->px e escala de template
+        var p = params;
+        p.dpi = panel.dpi;
+
         // Rotação se horizontal
         var working = panel;
         var rotated: ?types.Image = null;
-        if (params.horizontal) {
+        if (p.horizontal) {
             const r = try imgops.ImageOps.rotate90CW(self.allocator, &panel);
             rotated = r;
             working = r;
         }
         defer if (rotated) |*im| im.deinit();
 
-        const measure_px = params.cmToPx(params.measure_cm);
-        const overlap_px = params.cmToPx(params.overlap_cm);
-        const pad_px = params.cmToPx(params.pad_cm);
+        const measure_px = p.cmToPx(p.measure_cm);
+        const overlap_px = p.cmToPx(p.overlap_cm);
+        const pad_px = p.cmToPx(p.pad_cm);
 
         if (measure_px == 0) return error.InvalidParams;
 
         // Template (opcional) - carregamos 1x
         var tpl_opt: ?types.Image = null;
         var tpl_scaled_opt: ?types.Image = null;
-        if (params.add_template and params.template_path.len > 0) {
-            const tpl = try imgops.ImageOps.load(self.allocator, params.template_path);
+        if (p.add_template and p.template_path.len > 0) {
+            const tpl = try imgops.ImageOps.load(self.allocator, p.template_path);
             tpl_opt = tpl;
             // Heurística: assume que template foi criado para 300 DPI; escala para o DPI atual.
-            if (params.dpi != 300.0) {
-                const scale = params.dpi / 300.0;
+            if (p.dpi != 300.0) {
+                const scale = p.dpi / 300.0;
                 const nw: u32 = @max(1, @as(u32, @intFromFloat(@round(@as(f64, @floatFromInt(tpl.width)) * scale))));
                 const nh: u32 = @max(1, @as(u32, @intFromFloat(@round(@as(f64, @floatFromInt(tpl.height)) * scale))));
                 const tpl_scaled = try imgops.ImageOps.resizeRGBA(self.allocator, &tpl, nw, nh);
@@ -71,7 +75,7 @@ pub const Cutter = struct {
             var tile = try imgops.ImageOps.crop(self.allocator, &working, @intCast(x_start), 0, tile_w, tile_h);
             defer tile.deinit();
 
-            if (params.add_contour) {
+            if (p.add_contour) {
                 imgops.ImageOps.addContour1px(&tile);
             }
 
@@ -104,7 +108,7 @@ pub const Cutter = struct {
 
             var to_save = padded;
             var rotated_back: ?types.Image = null;
-            if (params.horizontal) {
+            if (p.horizontal) {
                 const rb = try imgops.ImageOps.rotate270CW(self.allocator, &padded);
                 rotated_back = rb;
                 to_save = rb;
@@ -112,13 +116,19 @@ pub const Cutter = struct {
             defer if (rotated_back) |*im| im.deinit();
 
             count += 1;
-            const out_name = try std.fmt.allocPrint(self.allocator, "{s} - P{d:0>2}.png", .{ basename, count });
+            const use_tiff = isTiffPath(panel_path);
+            const out_ext = if (use_tiff) ".tif" else ".png";
+            const out_name = try std.fmt.allocPrint(self.allocator, "{s} - P{d:0>2}{s}", .{ basename, count, out_ext });
             defer self.allocator.free(out_name);
 
             const out_path = try joinPath(self.allocator, out_dir, out_name);
             defer self.allocator.free(out_path);
 
-            try imgops.ImageOps.savePng(&to_save, out_path);
+            if (use_tiff) {
+                try imgops.ImageOps.saveTiff(&to_save, out_path);
+            } else {
+                try imgops.ImageOps.savePng(&to_save, out_path);
+            }
 
             if (x_end >= @as(i64, w_total)) break;
 
@@ -182,4 +192,15 @@ fn fileBaseNoExt(path: []const u8) []const u8 {
 
 fn joinPath(allocator: std.mem.Allocator, a: []const u8, b: []const u8) ![]u8 {
     return std.fs.path.join(allocator, &.{ a, b });
+}
+
+fn isTiffPath(path: []const u8) bool {
+    if (path.len < 4) return false;
+    const ext4 = path[path.len - 4 ..];
+    if (std.ascii.eqlIgnoreCase(ext4, ".tif")) return true;
+    if (path.len >= 5) {
+        const ext5 = path[path.len - 5 ..];
+        if (std.ascii.eqlIgnoreCase(ext5, ".tiff")) return true;
+    }
+    return false;
 }

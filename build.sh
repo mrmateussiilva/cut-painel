@@ -32,7 +32,8 @@ if [[ -f zig-out/lib/libimgcutter.dylib ]]; then
 fi
 
 echo "== Build (Windows x86_64) =="
-zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
+# TIFF via libtiff é suportado no Linux/macOS. Para Windows (cross-compile), desabilitamos por padrão.
+zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast -Denable_tiff=false
 
 if [[ -f zig-out/bin/imgcutter.dll ]]; then
   cp zig-out/bin/imgcutter.dll "$DIST_DIR/"
