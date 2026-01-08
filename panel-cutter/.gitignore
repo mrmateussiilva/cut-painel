@@ -1,0 +1,16 @@
+# Zig
+backend-zig/.zig-cache/
+backend-zig/zig-out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Dist (binários)
+dist/*.so
+dist/*.dll
+dist/*.dylib
+
+# OS
+.DS_Store
