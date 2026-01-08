@@ -6,6 +6,8 @@ pub fn build(b: *std.Build) void {
 
     const default_enable_tiff = target.result.os.tag != .windows;
     const enable_tiff = b.option(bool, "enable_tiff", "Habilita suporte a TIFF via libtiff (Linux/macOS). Para Windows, exige libtiff disponível no toolchain.") orelse default_enable_tiff;
+    const tiff_include_dir = b.option([]const u8, "tiff_include_dir", "Diretório de include do libtiff (ex.: vcpkg/installed/x64-windows/include)");
+    const tiff_lib_dir = b.option([]const u8, "tiff_lib_dir", "Diretório de libs (.lib/.a) do libtiff (ex.: vcpkg/installed/x64-windows/lib)");
 
     const opts = b.addOptions();
     opts.addOption(bool, "enable_tiff", enable_tiff);
@@ -35,7 +37,9 @@ pub fn build(b: *std.Build) void {
     });
 
     if (enable_tiff) {
-        // libtiff (sistema)
+        // libtiff (sistema / vcpkg)
+        if (tiff_include_dir) |p| lib.addIncludePath(.{ .cwd_relative = p });
+        if (tiff_lib_dir) |p| lib.addLibraryPath(.{ .cwd_relative = p });
         lib.linkSystemLibrary("tiff");
     }
 
