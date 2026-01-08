@@ -72,6 +72,56 @@ python gui_app.py
 - **DPI**: stb não lê DPI nativamente. O backend assume **300 DPI**.
   - Para TIFF, tentamos ler DPI do arquivo (X/YResolution) e usar na conversão cm → px.
 
+## Windows (profissional) — TIFF + Instalador
+
+### Visão geral
+
+Para ter **TIFF no Windows**, você precisa distribuir junto:
+- `imgcutter.dll` (seu backend Zig compilado com TIFF ligado)
+- `tiff.dll` e dependências (vindas do `vcpkg`), na **mesma pasta do executável**
+
+E para ficar “produto final”, empacotamos a GUI com **PyInstaller (onedir)** e geramos instalador com **Inno Setup**.
+
+### Pré-requisitos (máquina de build Windows)
+
+- Zig 0.15.2 (`zig` no PATH)
+- Python 3.10+
+- Git
+- **Inno Setup** (com `iscc.exe` no PATH)
+- Visual Studio Build Tools (recomendado para `vcpkg` no triplet `x64-windows`)
+
+### Build automatizado (recomendado)
+
+No Windows PowerShell:
+
+```powershell
+.\scripts\windows\build_installer.ps1 -Version 0.1.0
+```
+
+Isso vai:
+- baixar/usar `vcpkg` em `vendor\vcpkg`
+- instalar `tiff` (`x64-windows`)
+- compilar `imgcutter.dll` com `-Denable_tiff=true`
+- empacotar a GUI em `release\windows\PanelCutter\PanelCutter.exe` (onedir)
+- copiar `imgcutter.dll` + `tiff.dll` e dependências ao lado do exe
+
+### Gerar instalador
+
+Após o staging existir, gere o instalador:
+
+```powershell
+iscc.exe .\installer\PanelCutter.iss /DMyAppVersion=0.1.0 /DSourceDir=\"$(Resolve-Path .\\release\\windows\\PanelCutter)\"
+```
+
+Saída: `release\\windows\\PanelCutter-Setup-0.1.0.exe`
+
+### Troubleshooting (Windows)
+
+- **Erro: DLL não encontrada (tiff.dll / zlib1.dll / etc)**:
+  - copie a DLL faltante de `vendor\\vcpkg\\installed\\x64-windows\\bin` para a pasta do app (ao lado do `PanelCutter.exe`)
+- **TIFF desabilitado**:
+  - no Windows, você precisa compilar com `-Denable_tiff=true` e fornecer `-Dtiff_include_dir` e `-Dtiff_lib_dir` apontando para o `vcpkg`.
+
 ## Próximo passo para ficar 1:1 com seu `court.py`
 
 Cole o `court.py` original em `frontend-python/court.py` (ou me envie aqui) e eu ajusto:
